@@ -118,7 +118,7 @@ class TransformerLayer(nn.Module):
         self.final_layer_norm = BertLayerNorm(self.embed_dim)
 
     def forward(
-        self, x, self_attn_mask=None, self_attn_padding_mask=None, need_head_weights=False
+        self, x, self_attn_mask=None, self_attn_padding_mask=None, need_head_weights=False, head_gates=None
     ):
         residual = x
         x = self.self_attn_layer_norm(x)
@@ -130,6 +130,7 @@ class TransformerLayer(nn.Module):
             need_weights=True,
             need_head_weights=need_head_weights,
             attn_mask=self_attn_mask,
+            head_gates = head_gates
         )
         x = residual + x
 

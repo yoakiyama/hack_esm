@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch.nn import Parameter
-from esm.rotary_embedding import RotaryEmbedding
+from hack_esm.rotary_embedding import RotaryEmbedding
 
 import uuid
 
@@ -69,6 +69,10 @@ class MultiheadAttention(nn.Module):
     """Multi-headed attention.
 
     See "Attention Is All You Need" for more details.
+
+    Modification:
+        - Include a scaling factor (gate) for the attention heads prior to concatenating
+        - If gi = 0, prunes the attention head
     """
 
     def __init__(
@@ -168,6 +172,7 @@ class MultiheadAttention(nn.Module):
         attn_mask: Optional[Tensor] = None,
         before_softmax: bool = False,
         need_head_weights: bool = False,
+        head_gates: torch.tensor = None
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
@@ -384,8 +389,11 @@ class MultiheadAttention(nn.Module):
             training=self.training,
         )
         assert v is not None
-        attn = torch.bmm(attn_probs, v)
+        attn = torch.bmm(attn_probs, v) # heads x L x dim_embed / heads
         assert list(attn.size()) == [bsz * self.num_heads, tgt_len, self.head_dim]
+        # Scale attn by scalar gates
+        if head_gates is not None:
+            attn = attn * head_gates
         if self.onnx_trace and attn.size(1) == 1:
             # when ONNX tracing a single decoder step (sequence length == 1)
             # the transpose is a no-op copy before view, thus unnecessary

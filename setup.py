@@ -6,7 +6,7 @@
 from setuptools import setup
 
 
-with open("esm/version.py") as infile:
+with open("hack_esm/version.py") as infile:
     exec(infile.read())
 
 with open("README.md") as f:
@@ -26,31 +26,31 @@ extras = {
 }
 
 sources = {
-    "esm": "esm",
-    "esm.model": "esm/model",
-    "esm.inverse_folding": "esm/inverse_folding",
-    "esm.esmfold.v1": "esm/esmfold/v1",
-    "esm.scripts": "scripts"
+    "hack_esm": "hack_esm",
+    "hack_esm.model": "hack_esm/model",
+    "hack_esm.inverse_folding": "hack_esm/inverse_folding",
+    "hack_esm.esmfold.v1": "hack_esm/esmfold/v1",
+    "hack_esm.scripts": "scripts"
 }
 
 setup(
-    name="fair-esm",
+    name="hack-fair-esm",
     version=version,
-    description="Evolutionary Scale Modeling (esm): Pretrained language models for proteins. From Facebook AI Research.",
+    description="Modified Evolutionary Scale Modeling (esm): Pretrained language models for proteins. From Facebook AI Research.",
     long_description=readme,
     long_description_content_type="text/markdown",
-    author="Facebook AI Research",
-    url="https://github.com/facebookresearch/esm",
+    author="Modified from original author: Facebook AI Research",
+    url="https://github.com/yoakiyama/hack_esm",
     license="MIT",
     packages=sources.keys(),
     package_dir=sources,
     extras_require=extras,
-    data_files=[("source_docs/esm", ["LICENSE", "README.md", "CODE_OF_CONDUCT.rst"])],
+    data_files=[("source_docs/hack_esm", ["LICENSE", "README.md", "CODE_OF_CONDUCT.rst"])],
     zip_safe=True,
     entry_points={
         "console_scripts": [
-            "esm-extract=esm.scripts.extract:main",
-            "esm-fold=esm.scripts.fold:main",
+            "hack-esm-extract=hack_esm.scripts.extract:main",
+            "hack-esm-fold=hack_esm.scripts.fold:main",
         ]
     },
 )

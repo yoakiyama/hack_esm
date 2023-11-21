@@ -7,8 +7,8 @@ from typing import Union
 import torch
 import torch.nn as nn
 
-import esm
-from esm.modules import ContactPredictionHead, ESM1bLayerNorm, RobertaLMHead, TransformerLayer
+import hack_esm
+from hack_esm.modules import ContactPredictionHead, ESM1bLayerNorm, RobertaLMHead, TransformerLayer
 
 
 class ESM2(nn.Module):
@@ -17,15 +17,15 @@ class ESM2(nn.Module):
         num_layers: int = 33,
         embed_dim: int = 1280,
         attention_heads: int = 20,
-        alphabet: Union[esm.data.Alphabet, str] = "ESM-1b",
+        alphabet: Union[hack_esm.data.Alphabet, str] = "ESM-1b",
         token_dropout: bool = True,
     ):
         super().__init__()
         self.num_layers = num_layers
         self.embed_dim = embed_dim
         self.attention_heads = attention_heads
-        if not isinstance(alphabet, esm.data.Alphabet):
-            alphabet = esm.data.Alphabet.from_architecture(alphabet)
+        if not isinstance(alphabet, hack_esm.data.Alphabet):
+            alphabet = hack_esm.data.Alphabet.from_architecture(alphabet)
         self.alphabet = alphabet
         self.alphabet_size = len(alphabet)
         self.padding_idx = alphabet.padding_idx
@@ -74,7 +74,7 @@ class ESM2(nn.Module):
             weight=self.embed_tokens.weight,
         )
 
-    def forward(self, tokens, repr_layers=[], need_head_weights=False, return_contacts=False):
+    def forward(self, tokens, repr_layers=[], need_head_weights=False, return_contacts=False, layer_head_gates=None):
         if return_contacts:
             need_head_weights = True
 
@@ -109,10 +109,15 @@ class ESM2(nn.Module):
             padding_mask = None
 
         for layer_idx, layer in enumerate(self.layers):
+            if layer_head_gates:
+                head_gates = layer_head_gates[layer_idx].view((self.attention_heads, 1, 1))
+            else:
+                head_gates = None
             x, attn = layer(
                 x,
                 self_attn_padding_mask=padding_mask,
                 need_head_weights=need_head_weights,
+                head_gates=head_gates
             )
             if (layer_idx + 1) in repr_layers:
                 hidden_representations[layer_idx + 1] = x.transpose(0, 1)
