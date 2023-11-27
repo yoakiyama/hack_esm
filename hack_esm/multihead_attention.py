@@ -359,7 +359,7 @@ class MultiheadAttention(nn.Module):
         if self.rot_emb:
             q, k = self.rot_emb(q, k)
 
-        attn_weights = torch.bmm(q, k.transpose(1, 2))
+        attn_weights = torch.bmm(q, k.transpose(1, 2)) # b*nHeads x L x L
         attn_weights = MultiheadAttention.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
 
         assert list(attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
@@ -382,24 +382,31 @@ class MultiheadAttention(nn.Module):
             return attn_weights, v
 
         attn_weights_float = utils_softmax(attn_weights, dim=-1, onnx_trace=self.onnx_trace)
+        # Scale attn by scalar gates
+        if head_gates is not None:
+            # Reshape
+            attn_weights_float = attn_weights_float.view(bsz, self.num_heads, tgt_len, src_len)
+            head_gates = head_gates.view(1, 20, 1, 1)
+            # scale attention
+            attn_weights_float = attn_weights_float * head_gates
+            attn_weights_float = attn_weights_float.view(bsz * self.num_heads, tgt_len, src_len)
         attn_weights = attn_weights_float.type_as(attn_weights)
         attn_probs = F.dropout(
             attn_weights_float.type_as(attn_weights),
             p=self.dropout,
             training=self.training,
         )
+
         assert v is not None
         attn = torch.bmm(attn_probs, v) # heads x L x dim_embed / heads
         assert list(attn.size()) == [bsz * self.num_heads, tgt_len, self.head_dim]
-        # Scale attn by scalar gates
-        if head_gates is not None:
-            attn = attn * head_gates
+
         if self.onnx_trace and attn.size(1) == 1:
             # when ONNX tracing a single decoder step (sequence length == 1)
             # the transpose is a no-op copy before view, thus unnecessary
             attn = attn.contiguous().view(tgt_len, bsz, embed_dim)
         else:
-            attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
+            attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim) # L x B x D
         attn = self.out_proj(attn)
         attn_weights: Optional[Tensor] = None
         if need_weights:
