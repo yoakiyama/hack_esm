@@ -109,7 +109,7 @@ class ESM2(nn.Module):
             padding_mask = None
 
         for layer_idx, layer in enumerate(self.layers):
-            if layer_head_gates:
+            if layer_head_gates is not None:
                 head_gates = layer_head_gates[layer_idx].view((self.attention_heads, 1, 1))
             else:
                 head_gates = None
